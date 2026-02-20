@@ -13,6 +13,13 @@ dt = msgspex.decoder.decode('"2024-01-02T03:04:05Z"', type=datetime)
 payload = msgspex.encoder.encode(dt)
 ```
 
+### Installing
+```shell
+pip install msgspex
+uv add msgspex
+poetry add msgspex
+```
+
 After `import msgspex`, all hooks and types are registered automatically.
 
 ## Custom Types
