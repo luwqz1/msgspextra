@@ -1,19 +1,19 @@
-# msgspextra
+# msgspex
 
 A collection of `msgspec` extensions: custom types, cast helpers, `decode hooks`, and `encode hooks`.
 
 ## Quick Start
 
 ```python
-import msgspextra
-from msgspextra.custom_types import Email, datetime
+import msgspex
+from msgspex.custom_types import Email, datetime
 
-value = msgspextra.decoder.decode('"user@example.com"', type=Email)
-dt = msgspextra.decoder.decode('"2024-01-02T03:04:05Z"', type=datetime)
-payload = msgspextra.encoder.encode(dt)
+value = msgspex.decoder.decode('"user@example.com"', type=Email)
+dt = msgspex.decoder.decode('"2024-01-02T03:04:05Z"', type=datetime)
+payload = msgspex.encoder.encode(dt)
 ```
 
-After `import msgspextra`, all hooks and types are registered automatically.
+After `import msgspex`, all hooks and types are registered automatically.
 
 ## Custom Types
 

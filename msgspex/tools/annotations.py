@@ -1,0 +1,164 @@
+import dataclasses
+import sys
+import types
+import typing
+from annotationlib import Format, ForwardRef, get_annotations
+from functools import cached_property
+from reprlib import recursive_repr
+
+from kungfu.library.misc import from_optional
+from kungfu.library.monad.option import NOTHING, Option, Some
+
+type TypeParameter = typing.Union[
+    typing.TypeVar,
+    typing.TypeVarTuple,
+    typing.ParamSpec,
+]
+type TypeParameters = tuple[TypeParameter, ...]
+type SupportsAnnotations = type[typing.Any] | types.ModuleType | typing.Callable[..., typing.Any]
+type AnnotationForm = typing.Any
+
+_UNION_TYPES: typing.Final = frozenset((typing.Union, types.UnionType))
+_CACHED_ANNOTATIONS: typing.Final = dict[SupportsAnnotations, "MappingAnnotations"]()
+
+
+def _cache_annotations(obj: SupportsAnnotations, annotations: dict[str, AnnotationForm], /) -> None:
+    _CACHED_ANNOTATIONS[obj] = MappingAnnotations(annotations)
+
+
+def _get_cached_annotations(obj: SupportsAnnotations, /) -> MappingAnnotations | None:
+    return _CACHED_ANNOTATIONS.get(obj)
+
+
+def is_union_type(obj: typing.Any, /) -> bool:
+    return typing.get_origin(obj) in _UNION_TYPES
+
+
+class MappingAnnotations[T = AnnotationForm](dict[str, T]):
+    def __init__(self, annotations: typing.Mapping[str, AnnotationForm], /) -> None:
+        super().__init__(annotations)
+        self.return_type: Option[T] = from_optional(self.pop("return", None))
+
+    @recursive_repr()
+    def __repr__(self) -> str:
+        return f"annotations={super().__repr__()}, return_type={self.return_type!r}"
+
+
+@dataclasses.dataclass
+class Annotations:
+    obj: SupportsAnnotations
+
+    @cached_property
+    def forward_ref_parameters(self) -> dict[str, typing.Any]:
+        parameters = dict[str, typing.Any](
+            is_argument=False,
+            is_class=False,
+            module=None,
+        )
+
+        if isinstance(self.obj, type):
+            parameters["is_class"] = True
+            parameters["module"] = sys.modules[module] if (module := getattr(self.obj, "__module__", None)) is not None else None
+        elif isinstance(self.obj, types.ModuleType):
+            parameters["module"] = self.obj
+        elif callable(self.obj):
+            parameters["is_argument"] = True
+
+        return parameters
+
+    @cached_property
+    def generic_parameters(self) -> Option[dict[TypeParameter, typing.Any]]:
+        return get_generic_parameters(self.obj)
+
+    @classmethod
+    def from_obj(cls, obj: typing.Any, /) -> typing.Self:
+        if not isinstance(obj, type | types.ModuleType | typing.Callable):
+            obj = type(obj)  # type: ignore
+
+        return cls(obj)  # type: ignore
+
+    @typing.overload
+    def get(
+        self,
+        *,
+        ignore_failed_evals: bool = True,
+        cache: bool = False,
+    ) -> MappingAnnotations[typing.ForwardRef | AnnotationForm]: ...
+
+    @typing.overload
+    def get(
+        self,
+        *,
+        exclude_forward_refs: typing.Literal[True],
+        ignore_failed_evals: bool = True,
+        cache: bool = False,
+    ) -> MappingAnnotations: ...
+
+    def get(
+        self,
+        *,
+        exclude_forward_refs: bool = False,
+        ignore_failed_evals: bool = True,
+        cache: bool = False,
+    ) -> MappingAnnotations:
+        if (cached_annotations := _get_cached_annotations(self.obj)) is not None:
+            return cached_annotations
+
+        annotations = dict[str, typing.Any]()
+        for name, annotation in get_annotations(
+            obj=self.obj,
+            format=Format.FORWARDREF,
+            eval_str=False,
+        ).items():
+            if isinstance(annotation, str):
+                annotation = ForwardRef(annotation, owner=self.obj, **self.forward_ref_parameters)
+
+            if not isinstance(annotation, ForwardRef):
+                annotations[name] = annotation
+                continue
+
+            try:
+                value = annotation.evaluate(format=Format.VALUE)
+            except NameError:
+                if not ignore_failed_evals:
+                    raise
+
+                value = annotation
+
+            if isinstance(value, typing.ForwardRef) and exclude_forward_refs:
+                continue
+
+            annotations[name] = value
+
+        if cache:
+            _cache_annotations(self.obj, annotations)
+
+        return MappingAnnotations(annotations)
+
+
+def get_generic_parameters(obj: typing.Any, /) -> Option[dict[TypeParameter, AnnotationForm]]:
+    origin_obj = typing.get_origin(obj)
+    args = typing.get_args(obj)
+    parameters: TypeParameters = getattr(origin_obj or obj, "__parameters__")
+
+    if not parameters:
+        return NOTHING
+
+    index = 0
+    generic_alias_args = dict[TypeParameter, typing.Any]()
+
+    for parameter in parameters:
+        if isinstance(parameter, typing.TypeVarTuple):
+            stop_index = len(args) - index
+            generic_alias_args[parameter] = args[index:stop_index]
+            index = stop_index
+            continue
+
+        arg = args[index] if index < len(args) else None
+        generic_alias_args[parameter] = arg
+        index += 1
+
+    return Some(generic_alias_args)
+
+
+__all__ = ("Annotations", "get_generic_parameters")

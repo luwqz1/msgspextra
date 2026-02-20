@@ -87,7 +87,7 @@ wheels = [
 ]
 
 [[package]]
-name = "msgspextra"
+name = "msgspex"
 version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
