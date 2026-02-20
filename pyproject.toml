@@ -8,6 +8,28 @@ dependencies = [
     "kungfu-fp>=1.0.0",
     "msgspec>=0.20.0",
 ]
+authors = [{ name = "luwqz1", email = "howluwqz1@gmail.com" }]
+license = { file = "LICENSE" }
+maintainers = [{ name = "luwqz1", email = "howluwqz1@gmail.com" }]
+keywords = [
+  "msgspec",
+  "custom types",
+  "decode hooks",
+  "encode hooks",
+  "msgspex",
+  "fast model",
+  "dataclasses",
+  "kungfu",
+]
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
 
 [dependency-groups]
 dev = [
@@ -15,6 +37,10 @@ dev = [
     "basedpyright>=1.38.0,<2",
     "pre-commit>=4.5.1,<5",
 ]
+
+[project.urls]
+Source = "https://github.com/luwqz1/msgspextra"
+"Bug Tracker" = "https://github.com/luwqz1/msgspextra/issues"
 
 [tool.ruff]
 line-length = 160
