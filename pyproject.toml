@@ -1,0 +1,88 @@
+[project]
+name = "msgspextra"
+version = "1.0.0"
+description = "An extra msgspec collection of custom types, casters, encode hooks and decode hooks."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "kungfu-fp>=1.0.0",
+    "msgspec>=0.20.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.1,<1",
+    "basedpyright>=1.38.0,<2",
+    "pre-commit>=4.5.1,<5",
+]
+
+[tool.ruff]
+line-length = 160
+target-version = "py314"
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint]
+select = [
+  "I",
+  "D",
+  "N",
+  "PLR",
+  "Q",
+  "COM",
+  "TC",
+  "YTT",
+  "SIM",
+  "RUF022",
+]
+ignore = [
+  "COM812",
+  "N805",
+  "N818",
+  "TC001",
+  "TC002",
+  "TC003",
+  "TC004",
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D107",
+  "D202",
+  "D203",
+  "D205",
+  "D209",
+  "D211",
+  "D213",
+  "D400",
+  "D401",
+  "D404",
+  "D415",
+  "PLR2004",
+  "PLR0911",
+  "PLR0912",
+  "PLR0913"
+]
+fixable = ["ALL"]
+unfixable = ["ERA"]
+exclude = [".venv", ".idea", "docs"]
+
+[tool.pyright]
+exclude = [
+  ".venv",
+  ".idea",
+  ".ruff_cache",
+  ".pytest_cache",
+  "docs",
+  "local",
+]
+typeCheckingMode = "strict"
+pythonPlatform = "All"
+pythonVersion = "3.14"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportSelfClsParameterName = false
