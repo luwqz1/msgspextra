@@ -41,9 +41,15 @@ class Model(msgspec.Struct, dict=True, rename={kw + "_": kw for kw in keyword.kw
         return val
 
     def __post_init__(self) -> None:
+        optional_fields = self.get_optional_fields()
+        nullable_optional_fields = self.get_nullable_optional_fields()
+
         for field, value in struct_asdict(self, exclude_unset=False).items():
-            if is_none(value):
+            if field in optional_fields and is_none(value):
                 setattr(self, field, UNSET)
+
+            if field in nullable_optional_fields and value is None:
+                setattr(self, field, NOTHING)
 
     @recursive_repr()
     def __repr__(self) -> str:
@@ -62,10 +68,27 @@ class Model(msgspec.Struct, dict=True, rename={kw + "_": kw for kw in keyword.kw
     @classmethod
     @cache
     def get_optional_fields(cls) -> frozenset[str]:
+        optional_fields = frozenset(
+            f.name
+            for f in cls.get_fields().values()
+            if (isinstance(f.type, msgspec.inspect.CustomType) and issubclass(f.type.cls, Option))  # type: ignore
+            or (
+                isinstance(f.type, msgspec.inspect.Metadata) and isinstance(f.type.type, msgspec.inspect.CustomType) and issubclass(f.type.type.cls, Option)  # type: ignore
+            )
+        )
+        return cls.get_nullable_optional_fields() ^ optional_fields
+
+    @classmethod
+    @cache
+    def get_nullable_optional_fields(cls) -> frozenset[str]:
         return frozenset(
             f.name
             for f in cls.get_fields().values()
-            if isinstance(f.type, msgspec.inspect.CustomType) and issubclass(f.type.cls, Option)  # type: ignore
+            if isinstance(f.type, msgspec.inspect.Metadata)
+            and f.type.extra  # type: ignore
+            and f.type.extra.get("nullable") is True  # type: ignore
+            and isinstance(f.type.type, msgspec.inspect.CustomType)
+            and issubclass(f.type.type.cls, Option)  # type: ignore
         )
 
     @classmethod
@@ -88,7 +111,7 @@ class Model(msgspec.Struct, dict=True, rename={kw + "_": kw for kw in keyword.kw
     ) -> dict[str, typing.Any]:
         if dct_name not in self.__dict__:
             self.__dict__[dct_name] = (  # type: ignore
-                struct_asdict(self) if not full else encoder.to_builtins(self.to_dict(exclude_fields=exclude_fields), order="deterministic")
+                struct_asdict(self) if not full else encoder.to_builtins(self.to_dict(exclude_fields=exclude_fields))
             )
 
         if not exclude_fields:

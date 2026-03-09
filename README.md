@@ -1,6 +1,6 @@
 # msgspex
 
-A collection of `msgspec` extensions: custom types, cast helpers, `decode hooks`, and `encode hooks`.
+A collection of [`msgspec`](https://github.com/jcrist/msgspec) extensions: custom types, cast helpers, `decode hooks`, and `encode hooks`.
 
 ## Quick Start
 
@@ -56,4 +56,7 @@ There is also decode-hook integration for `kungfu.Sum` (not a custom type, but s
 - `Int32`, `Int64` — range-limited integer types
 - `Float32`, `Float64` — finite, range-limited floating-point types
 
-`UUID` is not redefined here, because it is already supported by `msgspec`.
+`UUID`, `Decimal`, `date` and `time` already supported by `msgspec`.
+
+## License
+msgspex is [MIT licensed](https://github.com/luwqz1/msgspextra/blob/main/LICENSE)

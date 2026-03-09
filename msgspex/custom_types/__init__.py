@@ -14,7 +14,7 @@ from msgspex.custom_types.ip import IPv4, IPv6
 from msgspex.custom_types.json_pointer import JsonPointer, RelativeJsonPointer
 from msgspex.custom_types.literal import Literal
 from msgspex.custom_types.numeric import Float32, Float64, Int32, Int64
-from msgspex.custom_types.option import Option
+from msgspex.custom_types.option import NullableOption, Option
 from msgspex.custom_types.regex import Regex
 from msgspex.custom_types.uri import IRI, URI, IRIReference, URIReference
 
@@ -39,6 +39,7 @@ __all__ = (
     "IntTimestampDatetime",
     "JsonPointer",
     "Literal",
+    "NullableOption",
     "Option",
     "Regex",
     "RelativeJsonPointer",

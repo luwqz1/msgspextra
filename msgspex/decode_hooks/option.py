@@ -39,7 +39,10 @@ def option_dec_hook(
 
         return Some(obj)  # type: ignore
 
-    return Some(decoder.convert(orig_obj, type=value_type))  # type: ignore
+    try:
+        return Some(decoder.convert(orig_obj, type=value_type))  # type: ignore
+    except msgspec.ValidationError as exc:
+        raise TypeError(exc) from None
 
 
 __all__ = ("option_dec_hook",)

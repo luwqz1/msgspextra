@@ -142,7 +142,8 @@ class Decoder:
 
     def convert[T](
         self,
-        obj: object,
+        obj: typing.Any,
+        /,
         *,
         type: type[T] = dict,
         strict: bool = True,
@@ -165,6 +166,7 @@ class Decoder:
     def decode(
         self,
         buf: str | bytes,
+        /,
         *,
         context: Context | None = None,
     ) -> typing.Any: ...
@@ -173,6 +175,7 @@ class Decoder:
     def decode[T](
         self,
         buf: str | bytes,
+        /,
         *,
         type: type[T],
         context: Context | None = None,
@@ -182,6 +185,7 @@ class Decoder:
     def decode(
         self,
         buf: str | bytes,
+        /,
         *,
         type: typing.Any,
         context: Context | None = None,
@@ -191,6 +195,7 @@ class Decoder:
     def decode[T](
         self,
         buf: str | bytes,
+        /,
         *,
         type: type[T],
         strict: bool = True,
@@ -201,6 +206,7 @@ class Decoder:
     def decode(
         self,
         buf: str | bytes,
+        /,
         *,
         type: typing.Any,
         strict: bool = True,
@@ -210,6 +216,7 @@ class Decoder:
     def decode(
         self,
         buf: str | bytes,
+        /,
         *,
         type: typing.Any = object,
         strict: bool = True,

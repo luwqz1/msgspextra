@@ -133,6 +133,7 @@ class Encoder:
     def encode(
         self,
         obj: typing.Any,
+        /,
         *,
         order: Order | None = None,
         context: Context | None = None,
@@ -142,6 +143,7 @@ class Encoder:
     def encode(
         self,
         obj: typing.Any,
+        /,
         *,
         as_str: typing.Literal[True],
         order: Order | None = None,
@@ -152,6 +154,7 @@ class Encoder:
     def encode(
         self,
         obj: typing.Any,
+        /,
         *,
         as_str: typing.Literal[False],
         order: Order | None = None,
@@ -161,6 +164,7 @@ class Encoder:
     def encode(
         self,
         obj: typing.Any,
+        /,
         *,
         as_str: bool = True,
         order: Order | None = None,
@@ -172,6 +176,7 @@ class Encoder:
     def to_builtins(
         self,
         obj: typing.Any,
+        /,
         *,
         str_keys: bool = False,
         builtin_types: typing.Iterable[type[typing.Any]] | None = None,
