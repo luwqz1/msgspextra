@@ -1,6 +1,6 @@
 # msgspex
 
-A collection of [`msgspec`](https://github.com/jcrist/msgspec) extensions: custom types, cast helpers, `decode hooks`, and `encode hooks`.
+A collection of [`msgspec`](https://github.com/jcrist/msgspec) extensions: custom types, cast helpers, `decode hooks`, `encode hooks` and deprecation system.
 
 ## Quick Start
 
@@ -37,6 +37,7 @@ There is also decode-hook integration for `kungfu.Sum` (not a custom type, but s
 - `timedelta` — subclass of `datetime.timedelta` with cast support.
 - `StrEnum`, `IntEnum`, `FloatEnum`, `BaseEnumMeta` — `enum` extensions for stable handling of unknown values.
 - `Literal` — runtime type conceptually compatible with `typing.Literal`.
+- `dataclasses.InitVar` — Passing vars to a `__post_init__` method.
 
 ### 3. OpenAPI-Oriented Types
 

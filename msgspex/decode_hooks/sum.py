@@ -4,12 +4,18 @@ from annotationlib import type_repr
 import msgspec
 from kungfu.library import Error, Ok, Sum
 
-from msgspex.decoder import convert, decoder
+from msgspex.decoder import Context, convert, decoder
 from msgspex.tools import fullname, get_origin, is_common_type, type_check
 
 
 @decoder.add_dec_hook(Sum)
-def sum_dec_hook(tp: type[typing.Any], obj: typing.Any, /) -> typing.Any:
+def sum_dec_hook(
+    tp: type[typing.Any],
+    obj: typing.Any,
+    /,
+    context: Context,
+    strict: bool = True,
+) -> typing.Any:
     union_types = typing.get_args(tp)
 
     if isinstance(obj, dict):
@@ -38,7 +44,7 @@ def sum_dec_hook(tp: type[typing.Any], obj: typing.Any, /) -> typing.Any:
         return tp(obj)  # type: ignore
 
     for t in union_types:
-        match convert(obj, t):
+        match convert(obj, t, strict=strict, context=context):
             case Ok(value):
                 return tp(value)  # type: ignore
             case Error(_):

@@ -1,5 +1,4 @@
 import dataclasses
-import enum
 import inspect
 import types
 import typing
@@ -22,12 +21,6 @@ type Function[**P, R, Yield = typing.Any] = typing.Callable[
         R,
     ],
 ]
-
-
-def _to_str(obj: typing.Any, /) -> str:
-    if isinstance(obj, enum.Enum):
-        return str(obj.value)
-    return str(obj) if not isinstance(obj, str) else obj
 
 
 @cache
@@ -222,7 +215,7 @@ def bundle[R](
             start_idx=start_idx,
         )
 
-    kwargs = {_to_str(k): v for k, v in context.items()}
+    kwargs = {k: v for k, v in context.items()}
     if not bundle_kwargs or "var_star_kwargs" not in get_func_parameters(function):
         names = resolve_arg_names(function, start_idx=start_idx, exclude={"cls", "self"})
         kwargs = {k: v for k, v in kwargs.items() if k in names}

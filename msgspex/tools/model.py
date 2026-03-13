@@ -29,12 +29,24 @@ def struct_asdict(
     /,
     *,
     exclude_unset: bool = True,
+    exclude_none: bool = False,
+    exclude_nothing: bool = False,
     unset_as_nothing: bool = False,
+    none_as_nothing: bool = False,
+    nothing_as_none: bool = False,
 ) -> dict[str, typing.Any]:
     return {
-        k: v if not unset_as_nothing else NOTHING if v is msgspec.UNSET else v
+        k: v
+        if not (unset_as_nothing or none_as_nothing or nothing_as_none)
+        else NOTHING
+        if unset_as_nothing and v is msgspec.UNSET
+        else NOTHING
+        if none_as_nothing and v is None
+        else None
+        if nothing_as_none and v is NOTHING
+        else v
         for k, v in msgspec.structs.asdict(struct).items()
-        if not (exclude_unset and (is_none(v) or v is msgspec.UNSET))
+        if not (exclude_nothing and v is NOTHING) and not (exclude_unset and v is msgspec.UNSET) and not (exclude_none and v is None)
     }
 
 

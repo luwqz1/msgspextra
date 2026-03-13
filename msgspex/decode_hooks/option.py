@@ -5,7 +5,7 @@ from kungfu.library import Sum
 from kungfu.library.monad.option import NOTHING, Nothing, Some
 
 from msgspex.custom_types.option import Option
-from msgspex.decoder import decoder
+from msgspex.decoder import Context, decoder
 from msgspex.tools import fullname, is_common_type, type_check
 
 
@@ -16,7 +16,9 @@ def option_dec_hook(
     tp: typing.Any,
     obj: typing.Any,
     /,
-) -> Option[typing.Any] | msgspec.UnsetType:
+    context: Context,
+    strict: bool = True,
+) -> typing.Any:
     if obj is msgspec.UNSET or obj is NOTHING:
         return obj
 
@@ -40,7 +42,7 @@ def option_dec_hook(
         return Some(obj)  # type: ignore
 
     try:
-        return Some(decoder.convert(orig_obj, type=value_type))  # type: ignore
+        return Some(decoder.convert(orig_obj, type=value_type, strict=strict, context=context))
     except msgspec.ValidationError as exc:
         raise TypeError(exc) from None
 

@@ -15,10 +15,11 @@ def convert[T](
     t: type[T],
     /,
     *,
+    strict: bool = True,
     context: Context | None = None,
 ) -> Result[T, str]:
     try:
-        return Ok(decoder.convert(obj, type=t, strict=True, context=context))
+        return Ok(decoder.convert(obj, type=t, strict=strict, context=context))
     except msgspec.ValidationError:
         return Error(
             "Expected object of type `{}`, got `{}`.".format(
@@ -136,7 +137,7 @@ class Decoder:
                     f"Not implemented decode hook for type `{fullname(origin_type)}`. You can implement decode hook for this type.",
                 )
 
-            return bundle(dec_hook_func, context or {}, start_idx=2)(tp, obj)
+            return bundle(dec_hook_func, context or {}, start_idx=2)(tp, obj, context=context or {})
 
         return inner
 
@@ -222,6 +223,8 @@ class Decoder:
         strict: bool = True,
         context: Context | None = None,
     ) -> typing.Any:
+        context = context or {}
+        context["strict"] = strict
         return msgspec.json.decode(
             buf,
             type=typing.Any if type is object else type,
