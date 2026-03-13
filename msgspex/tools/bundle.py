@@ -216,6 +216,8 @@ def bundle[R](
         )
 
     kwargs = {k: v for k, v in context.items()}
+    kwargs.setdefault("context", kwargs)
+
     if not bundle_kwargs or "var_star_kwargs" not in get_func_parameters(function):
         names = resolve_arg_names(function, start_idx=start_idx, exclude={"cls", "self"})
         kwargs = {k: v for k, v in kwargs.items() if k in names}

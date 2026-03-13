@@ -137,7 +137,7 @@ class Decoder:
                     f"Not implemented decode hook for type `{fullname(origin_type)}`. You can implement decode hook for this type.",
                 )
 
-            return bundle(dec_hook_func, context or {}, start_idx=2)(tp, obj, context=context or {})
+            return bundle(dec_hook_func, context or {}, start_idx=2)(tp, obj)
 
         return inner
 
