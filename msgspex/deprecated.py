@@ -65,7 +65,7 @@ def model_deprecated(
     /,
     *,
     category: type[Warning] = PendingDeprecationWarning,
-    stacklevel: int = 9,
+    stacklevel: int = 4,
 ) -> typing.Callable[..., typing.Any]:
     def decorator(model: typing.Any, /) -> typing.Any:
         setattr(model, _MODEL_IS_DEPRECATED_ATTR, True)

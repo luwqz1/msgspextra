@@ -2,7 +2,7 @@ import dataclasses
 import keyword
 import types
 import typing
-from functools import cache
+from functools import cache, wraps
 from reprlib import recursive_repr
 
 import msgspec
@@ -20,6 +20,20 @@ type From[T] = T
 type InitOnly[T] = typing.Annotated[T, msgspec.Meta(extra=dict(init_only=True))]
 
 _SENTINEL: typing.Final = object
+_MARK_MODEL_WARNED_DEPRECATION_ATTR: typing.Final = "__model_warned_deprecation__"
+
+
+def warn_model_deprecated(*, stacklevel: int | None = None) -> typing.Callable[..., typing.Any]:
+    def decorator(f: typing.Callable[..., Model], /) -> typing.Callable[..., typing.Any]:
+        @wraps(f)
+        def wrapper(*args: typing.Any, **kwargs: typing.Any) -> Model:
+            model = f(*args, **kwargs)
+            model._warn_deprecation_if_deprecated(stacklevel=7 if stacklevel is None else stacklevel)  # type: ignore
+            return model
+
+        return wrapper
+
+    return decorator
 
 
 def field(**kwargs: typing.Any) -> typing.Any:
@@ -50,6 +64,11 @@ class ModelMeta(msgspec.StructMeta):
 
         return cls
 
+    def __call__(self, *args: typing.Any, **kwds: typing.Any) -> typing.Any:
+        model = super().__call__(*args, **kwds)
+        model._warn_deprecation_if_deprecated(stacklevel=4)
+        return model
+
     def __getattribute__(cls, name: str, /) -> typing.Any:
         if name == "__post_init__":
             post_init = super().__getattribute__(name)
@@ -63,8 +82,6 @@ class ModelMeta(msgspec.StructMeta):
 
     @staticmethod
     def pre_post_init(model: Model, post_post_init: typing.Callable[..., None] | None = None, /) -> None:
-        model._warn_deprecation_if_deprecated()  # type: ignore
-
         optional_fields = model.get_optional_fields()
         nullable_optional_fields = model.get_nullable_optional_fields()
         init_only_fields = model.get_init_only_fields()
@@ -125,10 +142,28 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         )
 
     @classmethod
-    @cache
-    def _warn_deprecation_if_deprecated(cls) -> None:
+    def _mark_as_warned_deprecation(cls) -> None:
+        setattr(cls, _MARK_MODEL_WARNED_DEPRECATION_ATTR, True)
+
+    @classmethod
+    def _is_deprecation_warned(cls) -> bool:
+        return getattr(cls, _MARK_MODEL_WARNED_DEPRECATION_ATTR, None) is True
+
+    @classmethod
+    def _warn_deprecation_if_deprecated(cls, stacklevel: int | None = None) -> None:
+        if cls._is_deprecation_warned():
+            return
+
         if warning_deprecation_meta := get_model_warning_deprecation_meta(cls):
-            warn_deprecation(**warning_deprecation_meta)
+            warn_deprecation(
+                **(
+                    warning_deprecation_meta
+                    | {  # type: ignore
+                        "stacklevel": warning_deprecation_meta["stacklevel"] if stacklevel is None else stacklevel,
+                    }
+                ),
+            )
+            cls._mark_as_warned_deprecation()
 
     @classmethod
     @cache
@@ -195,23 +230,25 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         return frozenset(name for name, value in cls.__dict__.items() if isinstance(value, property) and is_field_deprecated(value))
 
     @classmethod
+    @warn_model_deprecated(stacklevel=4)
     def from_data(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Self:
         aliases = cls.get_aliases_fields()
-        return cls.from_dict(
+        return decoder.convert(
             {aliases.get(name, name): value for name, value in (cls.__signature__.bind_partial(*args).arguments | kwargs).items()},
+            type=cls,
         )
 
     @classmethod
-    def from_dict(cls, obj: dict[str, typing.Any], /) -> typing.Self:
-        return cls.from_mapping(obj)
-
-    @classmethod
+    @warn_model_deprecated(stacklevel=4)
     def from_mapping(cls, mapping: typing.Mapping[str, typing.Any], /) -> typing.Self:
         return decoder.convert(mapping, type=cls)
 
     @classmethod
+    @warn_model_deprecated(stacklevel=4)
     def from_raw(cls, raw: str | bytes, /) -> typing.Self:
         return decoder.decode(raw, type=cls)
+
+    from_dict = from_mapping
 
     def _to_dict(
         self,
