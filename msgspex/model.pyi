@@ -52,20 +52,15 @@ class ModelMeta(msgspec.StructMeta): ...
 
 @typing.dataclass_transform(field_specifiers=(field,))
 class Model(msgspec.Struct, metaclass=ModelMeta):
-    @classmethod
-    def get_all_fields(cls) -> typing.Mapping[str, msgspec.inspect.Field]: ...
-    @classmethod
-    def get_fields(cls) -> typing.Mapping[str, msgspec.inspect.Field]: ...
-    @classmethod
-    def get_init_only_fields(cls) -> typing.Iterable[str]: ...
-    @classmethod
-    def get_aliases_fields(cls) -> typing.Mapping[str, str]: ...
-    @classmethod
-    def get_optional_fields(cls) -> typing.Iterable[str]: ...
-    @classmethod
-    def get_nullable_optional_fields(cls) -> typing.Iterable[str]: ...
-    @classmethod
-    def get_deprecated_fields(cls) -> typing.Iterable[str]: ...
+    __model_fields__: typing.ClassVar[typing.Mapping[str, msgspec.inspect.Field]]
+    __model_required_fields__: typing.ClassVar[typing.Mapping[str, msgspec.inspect.Field]]
+    __model_aliases_fields__: typing.ClassVar[typing.Mapping[str, str]]
+    __model_meta_deprecated_fields__: typing.ClassVar[typing.Mapping[str, str | None]]
+    __model_optional_fields__: typing.ClassVar[typing.Iterable[str]]
+    __model_nullable_optional_fields__: typing.ClassVar[typing.Iterable[str]]
+    __model_init_only_fields__: typing.ClassVar[typing.Iterable[str]]
+    __model_deprecated_fields__: typing.ClassVar[typing.Iterable[str]]
+
     @classmethod
     def from_data[**P, T](cls: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T: ...
     @classmethod
