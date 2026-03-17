@@ -155,7 +155,7 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     __model_initialized__: typing.ClassVar[bool] = False
     __model_warned_deprecation__: typing.ClassVar[bool]
     __model_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]]
-    __model_required_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]]
+    __model_accessible_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]]
     __model_aliases_fields__: typing.ClassVar[types.MappingProxyType[str, str]]
     __model_optional_fields__: typing.ClassVar[frozenset[str]]
     __model_nullable_optional_fields__: typing.ClassVar[frozenset[str]]
@@ -228,7 +228,7 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
                 for name, field in get_fields_by_meta(cls, "deprecated").items()
             },
         )
-        cls.__model_required_fields__ = types.MappingProxyType(
+        cls.__model_accessible_fields__ = types.MappingProxyType(
             mapping={name: f for name, f in cls.__model_fields__.items() if name not in cls.__model_init_only_fields__},
         )
         cls.__model_aliases_fields__ = types.MappingProxyType(
@@ -279,11 +279,13 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         **kwargs: typing.Any,
     ) -> typing.Self:
         is_from_call = __from_call is _FROM_CALL_SENTINEL
+        is_just_arg = not (is_from_call or __from_call is _SENTINEL)
+
         data = (
             cls.__signature__.bind_partial(__from_call).arguments
-            if not is_from_call and not args
+            if is_just_arg and not args
             else cls.__signature__.bind_partial(__from_call, *args).arguments
-            if not is_from_call
+            if is_just_arg
             else cls.__signature__.bind_partial(*args).arguments
             if args
             else kwargs
