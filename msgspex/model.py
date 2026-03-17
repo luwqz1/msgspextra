@@ -19,8 +19,18 @@ from msgspex.tools.bundle import bundle
 type From[T] = T
 type InitOnly[T] = typing.Annotated[T, msgspec.Meta(extra=dict(init_only=True))]
 
-_SENTINEL: typing.Final = object
+_SENTINEL: typing.Final = object()
 _MARK_MODEL_WARNED_DEPRECATION_ATTR: typing.Final = "__model_warned_deprecation__"
+
+
+def get_fields_by_meta(model: type[Model], meta_key: str) -> dict[str, msgspec.inspect.Field]:
+    return {
+        f.name: f
+        for f in model.get_all_fields().values()
+        if isinstance(f.type, msgspec.inspect.Metadata)
+        and f.type.extra  # type: ignore
+        and f.type.extra.get(meta_key) is True  # type: ignore
+    }
 
 
 def warn_model_deprecated(*, stacklevel: int | None = None) -> typing.Callable[..., typing.Any]:
@@ -47,6 +57,15 @@ def field(**kwargs: typing.Any) -> typing.Any:
     return msgspec.field(**kwargs)
 
 
+class Deprecated:
+    def __class_getitem__(cls, item: typing.Any, /) -> typing.Any:
+        annotation, message, *_ = item if isinstance(item, tuple) else (item, None)  # type: ignore
+        return typing.Annotated[
+            annotation,
+            msgspec.Meta(extra=dict(deprecated=True, deprecation_message=message)),  # type: ignore
+        ]
+
+
 class ModelMeta(msgspec.StructMeta):
     def __new__(
         mcls: type[typing.Any],
@@ -64,9 +83,15 @@ class ModelMeta(msgspec.StructMeta):
 
         return cls
 
-    def __call__(self, *args: typing.Any, **kwds: typing.Any) -> typing.Any:
+    def __call__(cls, *args: typing.Any, **kwds: typing.Any) -> typing.Any:
         model = super().__call__(*args, **kwds)
+
         model._warn_deprecation_if_deprecated(stacklevel=4)
+        model._warn_deprecated_fields(
+            (type(model).__signature__.bind_partial(*args).arguments | kwds),  # type: ignore
+            stacklevel=4,
+        )
+
         return model
 
     def __getattribute__(cls, name: str, /) -> typing.Any:
@@ -166,6 +191,26 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
             cls._mark_as_warned_deprecation()
 
     @classmethod
+    def _warn_deprecated_fields(
+        cls,
+        fields: typing.Iterable[str],
+        stacklevel: int = 1,
+    ) -> None:
+        deprecated_fields = cls.get_meta_deprecated_fields()
+        warned_meta_deprecated_fields = cls.get_warned_meta_deprecated_fields()
+
+        if not set(deprecated_fields) - warned_meta_deprecated_fields:
+            return
+
+        for field_name in fields:
+            if field_name not in warned_meta_deprecated_fields and field_name in deprecated_fields:
+                warn_deprecation(
+                    message=deprecated_fields[field_name] or f"Field `{field_name}` of `{cls.__name__}` is deprecated and will be removed in future releases.",
+                    stacklevel=stacklevel,
+                )
+                warned_meta_deprecated_fields.add(field_name)
+
+    @classmethod
     @cache
     def get_all_fields(cls) -> types.MappingProxyType[str, msgspec.inspect.Field]:
         return types.MappingProxyType(
@@ -175,13 +220,7 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     @classmethod
     @cache
     def get_init_only_fields(cls) -> frozenset[str]:
-        return frozenset(
-            f.name
-            for f in cls.get_all_fields().values()
-            if isinstance(f.type, msgspec.inspect.Metadata)
-            and f.type.extra  # type: ignore
-            and f.type.extra.get("init_only") is True  # type: ignore
-        )
+        return frozenset(get_fields_by_meta(cls, "init_only"))
 
     @classmethod
     @cache
@@ -209,13 +248,25 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     def get_nullable_optional_fields(cls) -> frozenset[str]:
         return frozenset(
             f.name
-            for f in cls.get_all_fields().values()
-            if isinstance(f.type, msgspec.inspect.Metadata)
-            and f.type.extra  # type: ignore
-            and f.type.extra.get("nullable") is True  # type: ignore
-            and isinstance(f.type.type, msgspec.inspect.CustomType)
+            for f in get_fields_by_meta(cls, "nullable").values()
+            if isinstance(f.type.type, msgspec.inspect.CustomType)  # type: ignore
             and issubclass(f.type.type.cls, Option)  # type: ignore
         )
+
+    @classmethod
+    @cache
+    def get_meta_deprecated_fields(cls) -> types.MappingProxyType[str, str | None]:
+        return types.MappingProxyType(
+            mapping={
+                name: None if (msg := field.type.extra.get("deprecation_message")) in (None, ...) else str(msg)  # type: ignore
+                for name, field in get_fields_by_meta(cls, "deprecated").items()
+            },
+        )
+
+    @classmethod
+    @cache
+    def get_warned_meta_deprecated_fields(cls) -> set[str]:
+        return set()
 
     @classmethod
     @cache
@@ -233,10 +284,10 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     @warn_model_deprecated(stacklevel=4)
     def from_data(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Self:
         aliases = cls.get_aliases_fields()
-        return decoder.convert(
-            {aliases.get(name, name): value for name, value in (cls.__signature__.bind_partial(*args).arguments | kwargs).items()},
-            type=cls,
-        )
+        data = cls.__signature__.bind_partial(*args).arguments | kwargs
+        model = decoder.convert({aliases.get(name, name): value for name, value in data.items()}, type=cls)
+        cls._warn_deprecated_fields(data, stacklevel=5)
+        return model
 
     @classmethod
     @warn_model_deprecated(stacklevel=4)
@@ -284,4 +335,4 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         return self._to_dict("model_as_full_dict", exclude_fields or set(), full=True)
 
 
-__all__ = ("UNSET", "From", "Model", "ModelMeta", "field")
+__all__ = ("UNSET", "Deprecated", "From", "Model", "ModelMeta", "field")

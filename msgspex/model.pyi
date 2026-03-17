@@ -1,5 +1,6 @@
 import typing
 from dataclasses import InitVar
+from typing import Annotated as Deprecated
 
 import msgspec
 
@@ -58,6 +59,8 @@ class Model(msgspec.Struct, metaclass=ModelMeta):
     @classmethod
     def get_init_only_fields(cls) -> typing.Iterable[str]: ...
     @classmethod
+    def get_aliases_fields(cls) -> typing.Mapping[str, str]: ...
+    @classmethod
     def get_optional_fields(cls) -> typing.Iterable[str]: ...
     @classmethod
     def get_nullable_optional_fields(cls) -> typing.Iterable[str]: ...
@@ -83,4 +86,4 @@ class Model(msgspec.Struct, metaclass=ModelMeta):
         exclude_fields: set[str] | None = None,
     ) -> dict[str, typing.Any]: ...
 
-__all__ = ("UNSET", "From", "InitVar", "Model", "ModelMeta", "field")
+__all__ = ("UNSET", "Deprecated", "From", "InitVar", "Model", "ModelMeta", "field")
