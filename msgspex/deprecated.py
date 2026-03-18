@@ -65,19 +65,20 @@ def model_deprecated(
     /,
     *,
     category: type[Warning] = PendingDeprecationWarning,
-    stacklevel: int = 4,
+    stacklevel: int | None = None,
 ) -> typing.Callable[..., typing.Any]:
     def decorator(model: typing.Any, /) -> typing.Any:
         setattr(model, _MODEL_IS_DEPRECATED_ATTR, True)
-        setattr(
-            model,
-            _MODEL_WARNING_DEPRECATION_META_ATTR,
-            dict(
-                message=message,
-                category=category,
-                stacklevel=stacklevel,
-            ),
+
+        meta: dict[str, typing.Any] = dict(
+            message=message,
+            category=category,
         )
+
+        if stacklevel is not None:
+            meta["stacklevel"] = stacklevel
+
+        setattr(model, _MODEL_WARNING_DEPRECATION_META_ATTR, meta)
         return model
 
     return decorator

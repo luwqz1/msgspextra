@@ -21,7 +21,7 @@ def is_model_deprecated(model: typing.Any, /) -> bool: ...
 class WarningDeprecationMeta(typing.TypedDict):
     message: str
     category: type[Warning]
-    stacklevel: int
+    stacklevel: typing.NotRequired[int]
 
 def get_model_warning_deprecation_meta(model: typing.Any, /) -> WarningDeprecationMeta | None: ...
 

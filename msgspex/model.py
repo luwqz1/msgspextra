@@ -46,7 +46,7 @@ def warn_model_deprecated(*, stacklevel: int) -> typing.Callable[..., typing.Any
             **kwargs: typing.Any,
         ) -> Model:
             model = f(cls, __from_call, *args, **kwargs)
-            model._warn_deprecation_if_deprecated(stacklevel=stacklevel + (__from_call is _FROM_CALL_SENTINEL))  # type: ignore
+            model._warn_deprecation_if_deprecated(stacklevel=stacklevel, is_from_call=(__from_call is _FROM_CALL_SENTINEL))  # type: ignore
             return model
 
         return wrapper
@@ -67,10 +67,33 @@ def field(**kwargs: typing.Any) -> typing.Any:
 
 class Deprecated:
     def __class_getitem__(cls, item: typing.Any, /) -> typing.Any:
-        annotation, message, *_ = item if isinstance(item, tuple) else (item, None)  # type: ignore
+        annotation = typing.Any
+        message = stacklevel = None
+
+        if not isinstance(item, tuple):
+            annotation = item
+
+        elif len(items := typing.cast("tuple[typing.Any, ...]", item)) > 1:
+            annotation = items[0]
+            message = items[1]
+            stacklevel = None if len(items) < 3 else items[2]
+
+            if stacklevel is None and isinstance(message, int):
+                message, stacklevel = None, message
+
+        elif len(items) == 1:
+            annotation = items[0]
+            message = stacklevel = None
+
         return typing.Annotated[
             annotation,
-            msgspec.Meta(extra=dict(deprecated=True, deprecation_message=message)),  # type: ignore
+            msgspec.Meta(
+                extra=dict(  # type: ignore
+                    deprecated=True,
+                    deprecation_message=message,
+                    deprecation_stacklevel=stacklevel,
+                ),
+            ),
         ]
 
 
@@ -161,7 +184,7 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     __model_nullable_optional_fields__: typing.ClassVar[frozenset[str]]
     __model_init_only_fields__: typing.ClassVar[frozenset[str]]
     __model_deprecated_fields__: typing.ClassVar[frozenset[str]]
-    __model_meta_deprecated_fields__: typing.ClassVar[types.MappingProxyType[str, str | None]]
+    __model_meta_deprecated_fields__: typing.ClassVar[types.MappingProxyType[str, tuple[str | None, int | None]]]
     __model_warned_meta_deprecated_fields__: typing.ClassVar[set[str]]
 
     def __getattribute__(self, name: str, /) -> typing.Any:
@@ -224,7 +247,10 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         )
         cls.__model_meta_deprecated_fields__ = types.MappingProxyType(
             mapping={
-                name: None if (msg := field.type.extra.get("deprecation_message")) in (None, ...) else str(msg)  # type: ignore
+                name: (
+                    None if (msg := field.type.extra.get("deprecation_message")) in (None, ...) else str(msg),  # type: ignore
+                    field.type.extra.get("deprecation_stacklevel"),  # type: ignore
+                )
                 for name, field in get_fields_by_meta(cls, "deprecated").items()
             },
         )
@@ -237,19 +263,13 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         cls.__model_deprecated_fields__ = frozenset(name for name, value in cls.__dict__.items() if isinstance(value, property) and is_field_deprecated(value))
 
     @classmethod
-    def _warn_deprecation_if_deprecated(cls, stacklevel: int | None = None) -> None:
+    def _warn_deprecation_if_deprecated(cls, stacklevel: int = 3, is_from_call: bool = False) -> None:
         if cls.__model_warned_deprecation__:
             return
 
         if warning_deprecation_meta := get_model_warning_deprecation_meta(cls):
-            warn_deprecation(
-                **(
-                    warning_deprecation_meta
-                    | {  # type: ignore
-                        "stacklevel": warning_deprecation_meta["stacklevel"] if stacklevel is None else stacklevel,
-                    }
-                ),
-            )
+            warning_deprecation_meta["stacklevel"] = warning_deprecation_meta.get("stacklevel", stacklevel) + is_from_call
+            warn_deprecation(**warning_deprecation_meta)
             cls.__model_warned_deprecation__ = True
 
     @classmethod
@@ -263,10 +283,11 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
 
         with warnings.catch_warnings(action="module", category=PendingDeprecationWarning):
             for field in deprecated:
+                message, stacklevel_ = deprecated_fields[field]
                 warnings.warn(
-                    message=deprecated_fields[field] or f"Field `{field}` of `{cls.__name__}` is deprecated and will be removed in future releases.",
+                    message=message or f"Field `{field}` of `{cls.__name__}` is deprecated and will be removed in future releases.",
                     category=PendingDeprecationWarning,
-                    stacklevel=stacklevel,
+                    stacklevel=stacklevel if stacklevel_ is None else stacklevel_,
                 )
                 warned_meta_deprecated_fields.add(field)
 
