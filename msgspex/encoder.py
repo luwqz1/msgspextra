@@ -39,14 +39,12 @@ class Encoder:
     enc_hooks: dict[typing.Any, EncHook]
     abstract_enc_hooks: dict[typing.Any, EncHook]
     default_enc_hook: EncHook | None
-    default_abstract_enc_hook: EncHook | None
 
     __slots__ = (
         "cast_types",
         "enc_hooks",
         "abstract_enc_hooks",
         "default_enc_hook",
-        "default_abstract_enc_hook",
     )
 
     def __init__(self) -> None:
@@ -54,16 +52,14 @@ class Encoder:
         self.enc_hooks = {}
         self.abstract_enc_hooks = {}
         self.default_enc_hook = None
-        self.default_abstract_enc_hook = None
 
     def __repr__(self) -> str:
-        return ("<{}: cast_types={}, enc_hooks={!r}, abstract_enc_hooks={!r}, default_enc_hook={!r}, default_abstract_enc_hook={!r}>").format(
+        return ("<{}: cast_types={}, enc_hooks={!r}, abstract_enc_hooks={!r}, default_enc_hook={!r}>").format(
             type(self).__name__,
             f"<{', '.join(f'{fullname(x)} -> {fullname(y)}' for x, y in self.cast_types.items())}>",
             self.enc_hooks,
             self.abstract_enc_hooks,
             self.default_enc_hook,
-            self.default_abstract_enc_hook,
         )
 
     @contextmanager
@@ -90,10 +86,6 @@ class Encoder:
         self.default_enc_hook = enc_hook
         return enc_hook
 
-    def set_default_abstract_enc_hook[T: EncHook](self, enc_hook: T, /) -> T:
-        self.default_abstract_enc_hook = enc_hook
-        return enc_hook
-
     def add_enc_hook[T: EncHook](self, t: typing.Any, /) -> typing.Callable[[T], T]:
         def decorator(func: T, /) -> T:
             encode_hook = self.enc_hooks.setdefault(get_origin(t), func)
@@ -112,14 +104,14 @@ class Encoder:
             if issubclass(subtype, abstract) or issubclass(type(subtype), abstract):
                 return enc_hook
 
-        return self.default_abstract_enc_hook
+        return None
 
     def enc_hook(self, context: Context | None = None, /) -> EncHook:
         def inner(obj: typing.Any, /) -> typing.Any:
             origin_type = get_origin(obj)
 
-            if (enc_hook_func := self.enc_hooks.get(origin_type, self.default_enc_hook)) is None and (
-                enc_hook_func := self.get_abstract_enc_hook(origin_type)
+            if (enc_hook_func := self.enc_hooks.get(origin_type)) is None and (
+                enc_hook_func := (self.get_abstract_enc_hook(origin_type) or self.default_enc_hook)
             ) is None:
                 raise NotImplementedError(
                     f"Not implemented encode hook for object of type `{fullname(origin_type)}`. You can implement encode hook for this object.",

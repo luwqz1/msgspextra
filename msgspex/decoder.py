@@ -33,23 +33,20 @@ class Decoder:
     dec_hooks: dict[typing.Any, DecHook]
     abstract_dec_hooks: dict[typing.Any, DecHook]
     default_dec_hook: DecHook | None
-    default_abstract_dec_hook: DecHook | None
 
-    __slots__ = ("dec_hooks", "abstract_dec_hooks", "default_dec_hook", "default_abstract_dec_hook")
+    __slots__ = ("dec_hooks", "abstract_dec_hooks", "default_dec_hook")
 
     def __init__(self) -> None:
         self.dec_hooks = {}
         self.abstract_dec_hooks = {}
         self.default_dec_hook = None
-        self.default_abstract_dec_hook = None
 
     def __repr__(self) -> str:
-        return "<{}: dec_hooks={!r}, abstract_dec_hooks={!r}, default_dec_hook={!r}, default_abstract_dec_hook={!r}>".format(
+        return "<{}: dec_hooks={!r}, abstract_dec_hooks={!r}, default_dec_hook={!r}>".format(
             type(self).__name__,
             self.dec_hooks,
             self.abstract_dec_hooks,
             self.default_dec_hook,
-            self.default_abstract_dec_hook,
         )
 
     @typing.overload
@@ -109,10 +106,6 @@ class Decoder:
         self.default_dec_hook = dec_hook
         return dec_hook
 
-    def set_abstract_default_dec_hook[T: DecHook](self, dec_hook: T, /) -> T:
-        self.default_abstract_dec_hook = dec_hook
-        return dec_hook
-
     def add_abstract_dec_hook[T: DecHook](self, abstract_type: typing.Any, /) -> typing.Callable[[T], T]:
         def decorator(func: T, /) -> T:
             return self.abstract_dec_hooks.setdefault(get_origin(abstract_type), func)  # type: ignore
@@ -124,14 +117,14 @@ class Decoder:
             if issubclass(subtype, abstract) or issubclass(type(subtype), abstract):
                 return dec_hook
 
-        return self.default_abstract_dec_hook
+        return None
 
     def dec_hook(self, context: Context | None = None, /) -> DecHook:
         def inner(tp: typing.Any, obj: typing.Any, /) -> typing.Any:
             origin_type = get_origin(tp)
 
-            if (dec_hook_func := self.dec_hooks.get(origin_type, self.default_dec_hook)) is None and (
-                dec_hook_func := self.get_abstract_dec_hook(origin_type)
+            if (dec_hook_func := self.dec_hooks.get(origin_type)) is None and (
+                dec_hook_func := (self.get_abstract_dec_hook(origin_type) or self.default_dec_hook)
             ) is None:
                 raise NotImplementedError(
                     f"Not implemented decode hook for type `{fullname(origin_type)}`. You can implement decode hook for this type.",
