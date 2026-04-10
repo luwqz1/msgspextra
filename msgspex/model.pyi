@@ -71,8 +71,14 @@ class Model(msgspec.Struct, metaclass=ModelMeta):
     __model_deprecated_fields__: typing.ClassVar[typing.Iterable[str]]
     """All fields of the model marked as deprecated via `@property` with a `@field_deprecated` decorator."""
     @classmethod
+    def initialize[**P, T](cls: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
+        """The method of calling a model, which pass the arguments without validation to the `__init__`."""
+    @classmethod
     def from_data[**P, T](cls: typing.Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
-        """The old method of calling a model, which validates the arguments passed to the model constructor."""
+        """The old method of calling a model, which validates the arguments passed to the model constructor.
+
+        note: A direct call to the model behaves in the same way.
+        """
     @classmethod
     def from_mapping(cls, mapping: typing.Mapping[str, typing.Any], /) -> typing.Self:
         """The method of calling a model, which validates passed mapping to the model constructor."""

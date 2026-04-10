@@ -128,25 +128,28 @@ class ModelMeta(msgspec.StructMeta):
             return getter(name)
 
         if name == "__post_init__":
-            post_init = getter(name)
+            user_post_init = getter(name)
 
-            if post_init != ModelMeta.__post_init__:
-                return lambda self: ModelMeta.pre_post_init(self, post_init)  # type: ignore
+            if user_post_init != ModelMeta.__post_init__:
+                return lambda self: ModelMeta.model_post_init(self, user_post_init)  # type: ignore
 
-            return post_init
+            return user_post_init
 
         return getter(name)
 
     def __post_init__(cls, model: Model) -> None:
-        cls.pre_post_init(model)
+        cls.model_post_init(model)
 
     @staticmethod
-    def pre_post_init(model: Model, post_post_init: typing.Callable[..., None] | None = None, /) -> None:
+    def model_post_init(model: Model, user_post_init: typing.Callable[..., None] | None = None, /) -> None:
         model_cls = type(model)
 
         optional_fields = model_cls.__model_optional_fields__
         nullable_optional_fields = model_cls.__model_nullable_optional_fields__
         init_only_fields = model_cls.__model_init_only_fields__
+
+        if user_post_init is None and not (optional_fields and nullable_optional_fields and init_only_fields):
+            return
 
         struct: msgspec.Struct = model  # type: ignore
         post_init_data: dict[str, typing.Any] = {}
@@ -167,11 +170,16 @@ class ModelMeta(msgspec.StructMeta):
             if set_value is not _SENTINEL:
                 msgspec.structs.force_setattr(model, field_name, set_value)
 
-        if post_post_init is not None:
+        if user_post_init is not None:
             try:
-                bundle(post_post_init, post_init_data)(model)
+                bundle(user_post_init, post_init_data)(model)
+            except msgspec.ValidationError:
+                raise
             except Exception as exc:
                 raise msgspec.ValidationError(exc) from None
+
+    def model_initialize(cls, *args: typing.Any, **kwds: typing.Any) -> typing.Any:
+        return super().__call__(*args, **kwds)
 
 
 class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw for kw in keyword.kwlist}):
@@ -290,6 +298,10 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
                     stacklevel=stacklevel if stacklevel_ is None else stacklevel_,
                 )
                 warned_meta_deprecated_fields.add(field)
+
+    @classmethod
+    def initialize(cls, *args: typing.Any, **kwargs: typing.Any) -> typing.Self:
+        return ModelMeta.model_initialize(cls, *args, **kwargs)
 
     @classmethod
     @warn_model_deprecated(stacklevel=4)
