@@ -14,24 +14,30 @@ from msgspex.custom_types.option import Option
 from msgspex.decoder import decoder
 from msgspex.deprecated import get_model_warning_deprecation_meta, is_field_deprecated, warn_deprecation
 from msgspex.encoder import encoder
-from msgspex.tools import is_none, struct_asdict
+from msgspex.tools import struct_asdict
 from msgspex.tools.bundle import bundle
 
 type From[T] = T
 type InitOnly[T] = typing.Annotated[T, msgspec.Meta(extra=dict(init_only=True))]
+type Factory = typing.Callable[[], typing.Any]
 
 _SENTINEL: typing.Final = object()
 _FROM_CALL_SENTINEL: typing.Final = object()
 _MARK_MODEL_WARNED_DEPRECATION_ATTR: typing.Final = "__model_warned_deprecation__"
 
 
-def get_fields_by_meta(model: type[Model], meta_key: str) -> dict[str, msgspec.inspect.Field]:
+def get_fields_by_meta(
+    model: type[Model],
+    meta_key: str,
+    predicate: typing.Callable[[typing.Any], bool] = lambda value: value,
+) -> dict[str, msgspec.inspect.Field]:
     return {
         f.name: f
         for f in model.__model_fields__.values()
         if isinstance(f.type, msgspec.inspect.Metadata)
         and f.type.extra  # type: ignore
-        and f.type.extra.get(meta_key) is True  # type: ignore
+        and meta_key in f.type.extra  # type: ignore
+        and predicate(f.type.extra[meta_key]) is True  # type: ignore
     }
 
 
@@ -63,6 +69,16 @@ def field(**kwargs: typing.Any) -> typing.Any:
 
     kwargs.pop("converter", None)
     return msgspec.field(**kwargs)
+
+
+@dataclasses.dataclass(kw_only=True)
+class DefaultFactory:
+    on_init: Factory
+    on_decode: typing.Any = msgspec.NODEFAULT
+    default: typing.Any = msgspec.NODEFAULT
+
+    def __call__(self) -> typing.NoReturn:
+        raise NotImplementedError
 
 
 class Deprecated:
@@ -106,6 +122,18 @@ class ModelMeta(msgspec.StructMeta):
         /,
         **kwargs: typing.Any,
     ) -> typing.Any:
+        init_default_factory_map: dict[str, Factory] = {}
+
+        for n, v in namespace.copy().items():
+            if isinstance(v, msgspec._Field) and isinstance(v.default_factory, DefaultFactory):  # type: ignore
+                init_default_factory_map[n] = v.default_factory.on_init
+                namespace[n] = msgspec.field(  # type: ignore
+                    name=v.name,
+                    default=v.default_factory.default,
+                    default_factory=msgspec.NODEFAULT if v.default_factory.default is not msgspec.NODEFAULT else v.default_factory.on_decode,
+                )
+
+        namespace["__model_init_default_factory_map__"] = types.MappingProxyType(mapping=init_default_factory_map)
         cls = msgspec.StructMeta.__new__(mcls, name, bases, namespace, **kwargs)
 
         for annname, annval in cls.__annotations__.copy().items():
@@ -160,7 +188,7 @@ class ModelMeta(msgspec.StructMeta):
             if field_name in nullable_optional_fields and field_value is None:
                 value = set_value = NOTHING
 
-            elif field_name in optional_fields and is_none(field_value):
+            elif field_name in optional_fields and (field_value is None or field_value is NOTHING):
                 value = set_value = UNSET
 
             if field_name in init_only_fields:
@@ -179,6 +207,19 @@ class ModelMeta(msgspec.StructMeta):
                 raise msgspec.ValidationError(exc) from None
 
     def model_initialize(cls, *args: typing.Any, **kwds: typing.Any) -> typing.Any:
+        if default_fact_map := cls.__model_init_default_factory_map__:
+            pos_args: dict[str, typing.Any] = {}
+
+            if args:
+                pos_args = cls.__signature__.bind_partial(*args).arguments
+                kwds.update(pos_args)
+
+            for field_name in cls.__model_fields__:
+                if field_name not in kwds and field_name in default_fact_map:
+                    kwds[field_name] = default_fact_map[field_name]()
+
+            return super().__call__(*tuple(kwds.pop(name) for name in pos_args), **kwds)
+
         return super().__call__(*args, **kwds)
 
 
@@ -191,6 +232,7 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     __model_optional_fields__: typing.ClassVar[frozenset[str]]
     __model_nullable_optional_fields__: typing.ClassVar[frozenset[str]]
     __model_init_only_fields__: typing.ClassVar[frozenset[str]]
+    __model_init_default_factory_map__: typing.ClassVar[types.MappingProxyType[str, Factory]]
     __model_deprecated_fields__: typing.ClassVar[frozenset[str]]
     __model_meta_deprecated_fields__: typing.ClassVar[types.MappingProxyType[str, tuple[str | None, int | None]]]
     __model_warned_meta_deprecated_fields__: typing.ClassVar[set[str]]
@@ -326,6 +368,11 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
 
         if data is not kwargs:
             data.update(kwargs)
+
+        if default_fact_map := cls.__model_init_default_factory_map__:
+            for field_name in cls.__model_fields__:
+                if field_name not in data and field_name in default_fact_map:
+                    data[field_name] = default_fact_map[field_name]()
 
         try:
             aliases = cls.__model_aliases_fields__
