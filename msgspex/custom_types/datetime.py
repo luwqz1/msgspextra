@@ -10,6 +10,31 @@ class Datetime(dt.datetime, SupportsCast):
     def cast(cls, obj: dt.datetime) -> typing.Self:
         return cls.fromtimestamp(timestamp=obj.timestamp(), tz=obj.tzinfo)
 
+    def __repr__(self) -> str:
+        data = (
+            self.year,
+            self.month,
+            self.day,
+            self.hour,
+            self.minute,
+        )
+
+        if self.second != 0:
+            data += (self.second,)
+
+        if self.microsecond:
+            data += (self.microsecond,)
+
+        representation = "datetime({})".format("".join(repr(x) for x in data))
+
+        if self.tzinfo is not None:
+            representation = representation[:-1] + ", tzinfo=%r" % self.tzinfo + ")"
+
+        if self.fold:
+            representation = representation[:-1] + ", fold=1)"
+
+        return representation
+
 
 class StringTimestampDatetime(Datetime):
     """String timestamp datetime."""
