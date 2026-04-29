@@ -157,54 +157,28 @@ class ModelMeta(msgspec.StructMeta):
 
         if name == "__post_init__":
             user_post_init = getter(name)
-
-            if user_post_init != ModelMeta.__post_init__:
-                return lambda self: ModelMeta.model_post_init(self, user_post_init)  # type: ignore
-
-            return user_post_init
+            return lambda self: ModelMeta.model_post_init(self, user_post_init)  # type: ignore
 
         return getter(name)
 
-    def __post_init__(cls, model: Model) -> None:
-        cls.model_post_init(model)
-
     @staticmethod
-    def model_post_init(model: Model, user_post_init: typing.Callable[..., None] | None = None, /) -> None:
-        model_cls = type(model)
+    def model_post_init(model: Model, user_post_init: typing.Callable[..., None], /) -> None:
+        init_only_fields = type(model).__model_init_only_fields__
 
-        optional_fields = model_cls.__model_optional_fields__
-        nullable_optional_fields = model_cls.__model_nullable_optional_fields__
-        init_only_fields = model_cls.__model_init_only_fields__
-
-        if user_post_init is None and not (optional_fields and nullable_optional_fields and init_only_fields):
+        if not init_only_fields:
+            user_post_init(model)
             return
 
-        struct: msgspec.Struct = model  # type: ignore
-        post_init_data: dict[str, typing.Any] = {}
+        post_init_data: dict[str, typing.Any] = {
+            field_name: getattr(model, field_name) for field_name in model.__struct_fields__ if field_name in init_only_fields
+        }
 
-        for field_name, field_value in struct_asdict(struct).items():
-            value = set_value = _SENTINEL
-
-            if field_name in nullable_optional_fields and field_value is None:
-                value = set_value = NOTHING
-
-            elif field_name in optional_fields and (field_value is None or field_value is NOTHING):
-                value = set_value = UNSET
-
-            if field_name in init_only_fields:
-                set_value = UNSET
-                post_init_data[field_name] = field_value if value is _SENTINEL else value
-
-            if set_value is not _SENTINEL:
-                msgspec.structs.force_setattr(model, field_name, set_value)
-
-        if user_post_init is not None:
-            try:
-                bundle(user_post_init, post_init_data)(model)
-            except msgspec.ValidationError:
-                raise
-            except Exception as exc:
-                raise msgspec.ValidationError(exc) from None
+        try:
+            bundle(user_post_init, post_init_data)(model)
+        except msgspec.ValidationError, KeyboardInterrupt, SystemExit:
+            raise
+        except BaseException as exc:
+            raise msgspec.ValidationError(exc) from None
 
     def model_initialize(cls, *args: typing.Any, **kwds: typing.Any) -> typing.Any:
         if default_fact_map := cls.__model_init_default_factory_map__:
@@ -238,19 +212,12 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
     __model_warned_meta_deprecated_fields__: typing.ClassVar[set[str]]
 
     def __getattribute__(self, name: str, /) -> typing.Any:
-        class_ = type(self)
         val = object.__getattribute__(self, name)
 
-        if name not in class_.__model_fields__:
+        if name not in type(self).__model_optional_fields__:
             return val
 
-        if name in class_.__model_optional_fields__:
-            return NOTHING if val is UNSET else val
-
-        if val is UNSET:
-            raise AttributeError(f"{class_.__name__!r} object has no attribute {name!r}")
-
-        return val
+        return NOTHING if val is UNSET else val
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -369,18 +336,31 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
         if data is not kwargs:
             data.update(kwargs)
 
+        aliases = cls.__model_aliases_fields__
+        data = {aliases.get(name, name): value for name, value in data.items()}
+
         if default_fact_map := cls.__model_init_default_factory_map__:
             for field_name in cls.__model_fields__:
                 if field_name not in data and field_name in default_fact_map:
                     data[field_name] = default_fact_map[field_name]()
 
         try:
-            aliases = cls.__model_aliases_fields__
-            model = decoder.convert({aliases.get(name, name): value for name, value in data.items()}, type=cls)
+            model = decoder.convert(data, type=cls)
         except msgspec.ValidationError as exc:
             raise TypeError(exc) from None
+        finally:
+            cls._warn_deprecated_fields(set(data), stacklevel=4 + is_from_call)
 
-        cls._warn_deprecated_fields(set(data), stacklevel=4 + is_from_call)
+        optional_fields = cls.__model_optional_fields__
+        nullable_optional_fields = cls.__model_nullable_optional_fields__
+
+        for field, value in data.items():
+            if field in nullable_optional_fields and value is None:
+                msgspec.structs.force_setattr(model, field, NOTHING)
+
+            elif field in optional_fields and (value is None or value is NOTHING):
+                msgspec.structs.force_setattr(model, field, UNSET)
+
         return model
 
     @classmethod
