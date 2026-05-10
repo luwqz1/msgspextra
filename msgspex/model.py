@@ -22,6 +22,8 @@ type InitOnly[T] = typing.Annotated[T, msgspec.Meta(extra=dict(init_only=True))]
 type Factory = typing.Callable[[], typing.Any]
 
 _SENTINEL: typing.Final = object()
+_EMPTY_MAPPING_PROXY: typing.Final = types.MappingProxyType(dict[str, typing.Any]())
+_EMPTY_FROZENSET = frozenset[typing.Any]()
 _FROM_CALL_SENTINEL: typing.Final = object()
 _MARK_MODEL_WARNED_DEPRECATION_ATTR: typing.Final = "__model_warned_deprecation__"
 
@@ -134,6 +136,7 @@ class ModelMeta(msgspec.StructMeta):
                 )
 
         namespace["__model_init_default_factory_map__"] = types.MappingProxyType(mapping=init_default_factory_map)
+        namespace["__model_warned_meta_deprecated_fields__"] = set()
         cls = msgspec.StructMeta.__new__(mcls, name, bases, namespace, **kwargs)
 
         for annname, annval in cls.__annotations__.copy().items():
@@ -198,18 +201,18 @@ class ModelMeta(msgspec.StructMeta):
 
 
 class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw for kw in keyword.kwlist}):
-    __model_initialized__: typing.ClassVar[bool] = False
-    __model_warned_deprecation__: typing.ClassVar[bool]
-    __model_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]]
-    __model_accessible_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]]
-    __model_aliases_fields__: typing.ClassVar[types.MappingProxyType[str, str]]
-    __model_optional_fields__: typing.ClassVar[frozenset[str]]
-    __model_nullable_optional_fields__: typing.ClassVar[frozenset[str]]
-    __model_init_only_fields__: typing.ClassVar[frozenset[str]]
-    __model_init_default_factory_map__: typing.ClassVar[types.MappingProxyType[str, Factory]]
-    __model_deprecated_fields__: typing.ClassVar[frozenset[str]]
-    __model_meta_deprecated_fields__: typing.ClassVar[types.MappingProxyType[str, tuple[str | None, int | None]]]
     __model_warned_meta_deprecated_fields__: typing.ClassVar[set[str]]
+    __model_initialized__: typing.ClassVar[bool] = False
+    __model_warned_deprecation__: typing.ClassVar[bool] = False
+    __model_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]] = _EMPTY_MAPPING_PROXY
+    __model_accessible_fields__: typing.ClassVar[types.MappingProxyType[str, msgspec.inspect.Field]] = _EMPTY_MAPPING_PROXY
+    __model_aliases_fields__: typing.ClassVar[types.MappingProxyType[str, str]] = _EMPTY_MAPPING_PROXY
+    __model_optional_fields__: typing.ClassVar[frozenset[str]] = _EMPTY_FROZENSET
+    __model_nullable_optional_fields__: typing.ClassVar[frozenset[str]] = _EMPTY_FROZENSET
+    __model_init_only_fields__: typing.ClassVar[frozenset[str]] = _EMPTY_FROZENSET
+    __model_init_default_factory_map__: typing.ClassVar[types.MappingProxyType[str, Factory]] = _EMPTY_MAPPING_PROXY
+    __model_deprecated_fields__: typing.ClassVar[frozenset[str]] = _EMPTY_FROZENSET
+    __model_meta_deprecated_fields__: typing.ClassVar[types.MappingProxyType[str, tuple[str | None, int | None]]] = _EMPTY_MAPPING_PROXY
 
     def __getattribute__(self, name: str, /) -> typing.Any:
         val = object.__getattribute__(self, name)
@@ -224,10 +227,11 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
 
     @recursive_repr()
     def __repr__(self) -> str:
-        init_only_fields = self.__model_init_only_fields__
-        optional_fields = self.__model_optional_fields__
+        cls = type(self)
+        init_only_fields = cls.__model_init_only_fields__
+        optional_fields = cls.__model_optional_fields__
         return "{}({})".format(
-            type(self).__name__,
+            cls.__name__,
             ", ".join(
                 f"{f}={'Nothing()' if val is UNSET and f in optional_fields else repr(val)}"
                 for f, val in struct_asdict(self, exclude_unset=False).items()
@@ -281,7 +285,7 @@ class Model(msgspec.Struct, metaclass=ModelMeta, dict=True, rename={kw + "_": kw
 
     @classmethod
     def _warn_deprecation_if_deprecated(cls, stacklevel: int = 3, is_from_call: bool = False) -> None:
-        if cls.__model_warned_deprecation__:
+        if cls.__model_warned_deprecation__ is True:
             return
 
         if warning_deprecation_meta := get_model_warning_deprecation_meta(cls):

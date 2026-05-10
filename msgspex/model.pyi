@@ -56,7 +56,7 @@ class DefaultFactory:
     def __call__(self) -> typing.Any: ...
 
 class ModelMeta(msgspec.StructMeta):
-    def model_initialize[T](cls: type[T], *args: typing.Any, **kwds: typing.Any) -> T: ...
+    pass
 
 @typing.dataclass_transform(field_specifiers=(field,))
 class Model(msgspec.Struct, metaclass=ModelMeta):
