@@ -1,6 +1,6 @@
 [project]
 name = "msgspex"
-version = "1.5.4"
+version = "1.6.0"
 description = "An extra msgspec collection of custom types, casters, encode hooks, decode hooks and deprecation system."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -33,9 +33,9 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.10,<1",
-    "basedpyright>=1.39.0,<2",
-    "pre-commit>=4.5.1,<5",
+    "ruff>=0.15.18,<1",
+    "basedpyright>=1.39.8,<2",
+    "pre-commit>=4.6.0,<5",
 ]
 
 [project.urls]
