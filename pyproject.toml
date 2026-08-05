@@ -5,7 +5,7 @@ description = "An extra msgspec collection of custom types, casters, encode hook
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "kungfu-fp>=1.0.0",
+    "kungfu-fp>=1.1.1",
     "msgspec>=0.21.1",
 ]
 authors = [{ name = "luwqz1", email = "howluwqz1@gmail.com" }]
@@ -33,9 +33,9 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.18,<1",
-    "basedpyright>=1.39.8,<2",
-    "pre-commit>=4.6.0,<5",
+    "ruff>=0.16.1,<1",
+    "basedpyright>=1.39.9,<2",
+    "pre-commit>=4.6.1,<5",
 ]
 
 [project.urls]
