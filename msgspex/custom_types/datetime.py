@@ -1,6 +1,5 @@
 import datetime as dt
 import typing
-from datetime import date
 
 from msgspex.caster import SupportsCast
 
@@ -67,22 +66,21 @@ class ISODatetime(Datetime):
     """ISO datetime."""
 
 
-isodatetime = ISODatetime
-
-
 class timedelta(dt.timedelta, SupportsCast):  # noqa: N801  # type: ignore
     @classmethod
     def cast(cls, obj: dt.timedelta) -> typing.Self:
         return cls(seconds=obj.total_seconds())
 
 
-DT: typing.TypeAlias = StringTimestampDatetime | IntTimestampDatetime | FloatTimestampDatetime | ISODatetime | dt.datetime
-
-
 if typing.TYPE_CHECKING:
-    from datetime import datetime, timedelta  # type: ignore
+    from datetime import date, datetime, timedelta  # type: ignore
+    from datetime import datetime as ftimestamp
+    from datetime import datetime as isodatetime
+    from datetime import datetime as itimestamp
+    from datetime import datetime as stimestamp
 
 else:
+    from datetime import date
 
     class datetimemeta(type):  # noqa: N801
         def __instancecheck__(cls, __instance: typing.Any) -> bool:
@@ -90,6 +88,14 @@ else:
 
     class datetime(metaclass=datetimemeta):  # noqa: N801
         pass
+
+    stimestamp = StringTimestampDatetime
+    itimestamp = IntTimestampDatetime
+    ftimestamp = FloatTimestampDatetime
+    isodatetime = ISODatetime
+
+
+DT: typing.TypeAlias = stimestamp | itimestamp | ftimestamp | isodatetime | dt.datetime
 
 
 __all__ = (
@@ -99,6 +105,9 @@ __all__ = (
     "StringTimestampDatetime",
     "date",
     "datetime",
+    "ftimestamp",
     "isodatetime",
+    "itimestamp",
+    "stimestamp",
     "timedelta",
 )

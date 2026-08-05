@@ -1,10 +1,14 @@
 from msgspex.custom_types.datetime import (
     FloatTimestampDatetime,
     IntTimestampDatetime,
+    ISODatetime,
     StringTimestampDatetime,
     date,
     datetime,
+    ftimestamp,
     isodatetime,
+    itimestamp,
+    stimestamp,
     timedelta,
 )
 from msgspex.custom_types.email import Email, IDNEmail
@@ -33,6 +37,7 @@ __all__ = (
     "IPv4",
     "IPv6",
     "IRIReference",
+    "ISODatetime",
     "Int32",
     "Int64",
     "IntEnum",
@@ -48,6 +53,9 @@ __all__ = (
     "URIReference",
     "date",
     "datetime",
+    "ftimestamp",
     "isodatetime",
+    "itimestamp",
+    "stimestamp",
     "timedelta",
 )
