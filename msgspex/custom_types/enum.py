@@ -1,84 +1,125 @@
 import enum
-import math
+import inspect
 import sys
+import types
 import typing
 
-NOT_SUPPORTED: typing.Final = "NOT_SUPPORTED"
+from msgspex.tools.class_property import class_property
+
+_FRIENDS_NOT_SUPPORTED_VALUES_MAP: typing.Final[typing.Any] = None
+_MISSING: typing.Final[typing.Any] = object()
+_DEFAULT_NOT_SUPPORTED_STRING: typing.Final = "<not supported member>"
+_DEFAULT_NOT_SUPPORTED_INTEGER: typing.Final = -sys.maxsize
+_DEFAULT_NOT_SUPPORTED_FLOAT: typing.Final = float("-inf")
 
 
-def _is_friend(bases: tuple[type[typing.Any], ...], /) -> bool:
-    return any(friend in bases for friend in ENUM_FRIENDS)
+def _create_enum_class() -> type[Enum]:
+    cls_name = "Enum"
+    classdict = enum.EnumDict(cls_name)
+
+    for key, value in enum.Enum.__dict__.items():
+        if isinstance(value, classmethod | staticmethod) or inspect.isroutine(value):
+            try:
+                classdict[key] = value
+            except ValueError as e:
+                if str(e) == f"_sunder_ names, such as {key!r}, are reserved for future Enum use":
+                    continue
+                raise
+
+    classdict.update(
+        dict(
+            __module__=__name__,
+            __name__=cls_name,
+            __doc__=enum.Enum.__doc__,
+            __qualname__=f"{__name__}.{cls_name}",
+        ),
+    )
+    return typing.cast("type[Enum]", _EnumMeta(cls_name, (), classdict))
 
 
-class StrEnum(str, enum.Enum):
+class _EnumMeta(enum.EnumMeta, type):
+    def __new__(
+        metacls,
+        cls: str,
+        bases: tuple[type[typing.Any], ...],
+        classdict: enum.EnumDict,
+        *,
+        boundary: enum.FlagBoundary | None = None,
+        _simple: bool = False,
+        not_supported_member: str | None = "NOT_SUPPORTED_MEMBER",
+        not_supported_value: typing.Any = _MISSING,
+        **kwds: typing.Any,
+    ):
+        if (
+            not_supported_member is not None
+            and _FRIENDS_NOT_SUPPORTED_VALUES_MAP
+            and (
+                not_supported := next(
+                    (value for friend, value in _FRIENDS_NOT_SUPPORTED_VALUES_MAP.items() if friend in bases),
+                    None,
+                )
+            )
+            is not None
+        ):
+            classdict[not_supported_member] = not_supported if not_supported_value is _MISSING else not_supported_value
+            classdict["_missing_"] = classmethod(lambda cls, *_, **__: getattr(cls, not_supported_member))
+            classdict["__not_supported__"] = class_property(lambda cls: getattr(cls, not_supported_member))
+
+        return super().__new__(metacls, cls, bases, classdict, boundary=boundary, _simple=_simple, **kwds)
+
+
+if typing.TYPE_CHECKING:
+
+    class Enum(metaclass=_EnumMeta):
+        @class_property
+        def __not_supported__(cls) -> typing.Any: ...
+else:
+    Enum = _create_enum_class()
+
+
+class StrEnum(str, Enum):
     def __str__(self) -> str:
         return self.value
 
 
-class IntEnum(int, enum.Enum):
+class IntEnum(int, Enum):
     def __int__(self) -> int:
-        return self.value
+        return int(self.value)
 
     def __float__(self) -> float:
         return float(self.value)
 
     def __index__(self) -> int:
-        return self.value
+        return int(self.value)
+
+    def __str__(self) -> str:
+        return str(self.value)
 
 
-class FloatEnum(float, enum.Enum):
+class FloatEnum(float, Enum):
     def __int__(self) -> int:
         return int(self.value)
 
     def __float__(self) -> float:
-        return self.value
+        return float(self.value)
+
+    def __str__(self) -> str:
+        return str(self.value)
 
 
-class BaseEnumMeta(enum.EnumMeta, type):
-    if typing.TYPE_CHECKING:
-
-        class _BaseEnumMeta(enum.Enum):  # noqa
-            NOT_SUPPORTED = enum.auto()
-
-        NOT_SUPPORTED: typing.Literal[_BaseEnumMeta.NOT_SUPPORTED]
-
-    else:
-
-        @staticmethod
-        def _member_missing(cls, value):
-            return cls._member_map_["NOT_SUPPORTED"]
-
-        def __new__(
-            metacls,
-            cls,
-            bases,
-            classdict,
-            *,
-            boundary=None,
-            _simple=False,
-            **kwds,
-        ):
-            if _is_friend(bases):
-                classdict["NOT_SUPPORTED"] = next(
-                    (value for base, value in NOT_SUPPORTED_VALUES.items() if base in bases),
-                    NOT_SUPPORTED,
-                )
-
-            classdict["_missing_"] = classmethod(BaseEnumMeta._member_missing)
-            return super().__new__(metacls, cls, bases, classdict, boundary=boundary, _simple=_simple, **kwds)
+BaseEnumMeta = EnumMeta = _EnumMeta
 
 
-ENUM_FRIENDS: typing.Final = (str, int, float, StrEnum, IntEnum, FloatEnum)
-NOT_SUPPORTED_VALUES: typing.Final = {
-    str: NOT_SUPPORTED,
-    int: sys.maxsize,
-    float: math.inf,
-    StrEnum: NOT_SUPPORTED,
-    IntEnum: sys.maxsize,
-    FloatEnum: math.inf,
-    enum.StrEnum: NOT_SUPPORTED,
-    enum.IntEnum: sys.maxsize,
-}
+_FRIENDS_NOT_SUPPORTED_VALUES_MAP: typing.Final = types.MappingProxyType(  # type: ignore
+    mapping={
+        str: _DEFAULT_NOT_SUPPORTED_STRING,
+        int: _DEFAULT_NOT_SUPPORTED_INTEGER,
+        float: _DEFAULT_NOT_SUPPORTED_FLOAT,
+        StrEnum: _DEFAULT_NOT_SUPPORTED_STRING,
+        IntEnum: _DEFAULT_NOT_SUPPORTED_INTEGER,
+        FloatEnum: _DEFAULT_NOT_SUPPORTED_FLOAT,
+    },
+)
 
 
-__all__ = ("BaseEnumMeta", "FloatEnum", "IntEnum", "StrEnum")
+__all__ = ("BaseEnumMeta", "Enum", "EnumMeta", "FloatEnum", "IntEnum", "StrEnum")
