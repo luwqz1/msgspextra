@@ -33,9 +33,9 @@ There is also decode-hook integration for `kungfu.Sum` (not a custom type, but s
 ### 2. Types Derived from stdlib
 
 - `date` — re-export of `datetime.date`.
-- `datetime` — meta-type that covers `StringTimestampDatetime`, `IntTimestampDatetime`, `FloatTimestampDatetime`, `ISODatetime` (alias: `isodatetime`), and `datetime.datetime`.
+- `datetime` — meta-type that covers `StringTimestampDatetime` (alias: `stimestamp`), `IntTimestampDatetime` (alias: `itimestamp`), `FloatTimestampDatetime` (alias: `ftimestamp`), `ISODatetime` (alias: `isodatetime`), and `datetime.datetime`.
 - `timedelta` — subclass of `datetime.timedelta` with cast support.
-- `StrEnum`, `IntEnum`, `FloatEnum`, `BaseEnumMeta` — `enum` extensions for stable handling of unknown values.
+- `StrEnum`, `IntEnum`, `FloatEnum`, `Enum` and `EnumMeta` — `enum` extensions for stable handling of unknown values.
 - `Literal` — runtime type conceptually compatible with `typing.Literal`.
 - `dataclasses.InitVar` — Passing vars to a `__post_init__` method.
 
