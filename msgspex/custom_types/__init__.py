@@ -12,7 +12,7 @@ from msgspex.custom_types.datetime import (
     timedelta,
 )
 from msgspex.custom_types.email import Email, IDNEmail
-from msgspex.custom_types.enum import BaseEnumMeta, FloatEnum, IntEnum, StrEnum
+from msgspex.custom_types.enum import BaseEnumMeta, Enum, EnumMeta, FloatEnum, IntEnum, StrEnum
 from msgspex.custom_types.hostname import Hostname, IDNHostname
 from msgspex.custom_types.ip import IPv4, IPv6
 from msgspex.custom_types.json_pointer import JsonPointer, RelativeJsonPointer
@@ -27,6 +27,8 @@ __all__ = (
     "URI",
     "BaseEnumMeta",
     "Email",
+    "Enum",
+    "EnumMeta",
     "Float32",
     "Float64",
     "FloatEnum",
