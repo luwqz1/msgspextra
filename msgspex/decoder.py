@@ -227,6 +227,7 @@ class Decoder:
 
 
 decoder: typing.Final = Decoder()
+decode: typing.Final = decoder.decode
 
 
-__all__ = ("Decoder", "convert", "decoder")
+__all__ = ("Decoder", "convert", "decode", "decoder")

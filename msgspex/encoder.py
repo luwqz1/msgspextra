@@ -16,7 +16,7 @@ def to_builtins(
     obj: typing.Any,
     *,
     str_keys: bool = False,
-    builtin_types: typing.Iterable[type[typing.Any]] | None = None,
+    builtin_types: typing.Iterable[typing.Any] | None = None,
     order: Order | None = None,
     context: Context | None = None,
 ) -> kungfu.library.Result[typing.Any, msgspec.ValidationError]:
@@ -190,6 +190,7 @@ class Encoder:
 
 
 encoder: typing.Final = Encoder()
+encode: typing.Final = encoder.encode
 
 
-__all__ = ("Encoder", "encoder", "to_builtins")
+__all__ = ("Encoder", "encode", "encoder", "to_builtins")
