@@ -10,6 +10,7 @@ from msgspex.encode_hooks.regex import regex_enc_hook
 from msgspex.encode_hooks.sum import sum_enc_hook
 from msgspex.encode_hooks.timedelta import timedelta_enc_hook
 from msgspex.encode_hooks.uri import uri_enc_hook
+from msgspex.encode_hooks.uuid import uuid4_enc_hook
 
 __all__ = (
     "datetime_enc_hook",
@@ -25,4 +26,5 @@ __all__ = (
     "sum_enc_hook",
     "timedelta_enc_hook",
     "uri_enc_hook",
+    "uuid4_enc_hook",
 )

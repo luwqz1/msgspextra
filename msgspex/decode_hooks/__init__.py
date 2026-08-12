@@ -11,6 +11,7 @@ from msgspex.decode_hooks.regex import regex_dec_hook
 from msgspex.decode_hooks.sum import sum_dec_hook
 from msgspex.decode_hooks.timedelta import timedelta_dec_hook
 from msgspex.decode_hooks.uri import uri_dec_hook
+from msgspex.decode_hooks.uuid import uuid4_dec_hook
 
 __all__ = (
     "datetime_dec_hook",
@@ -27,4 +28,5 @@ __all__ = (
     "sum_dec_hook",
     "timedelta_dec_hook",
     "uri_dec_hook",
+    "uuid4_dec_hook",
 )
