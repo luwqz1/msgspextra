@@ -55,7 +55,7 @@ class Encoder:
 
     def __repr__(self) -> str:
         return ("<{}: cast_types={}, enc_hooks={!r}, abstract_enc_hooks={!r}, default_enc_hook={!r}>").format(
-            type(self).__name__,
+            fullname(self),
             f"<{', '.join(f'{fullname(x)} -> {fullname(y)}' for x, y in self.cast_types.items())}>",
             self.enc_hooks,
             self.abstract_enc_hooks,

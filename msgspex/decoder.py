@@ -43,7 +43,7 @@ class Decoder:
 
     def __repr__(self) -> str:
         return "<{}: dec_hooks={!r}, abstract_dec_hooks={!r}, default_dec_hook={!r}>".format(
-            type(self).__name__,
+            fullname(self),
             self.dec_hooks,
             self.abstract_dec_hooks,
             self.default_dec_hook,
