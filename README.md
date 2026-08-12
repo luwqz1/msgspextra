@@ -56,6 +56,7 @@ There is also decode-hook integration for `kungfu.Sum` (not a custom type, but s
 - `Regex` — `format: regex`
 - `Int32`, `Int64` — range-limited integer types
 - `Float32`, `Float64` — finite, range-limited floating-point types
+- `UUID4` — uuid v4
 
 `UUID`, `Decimal`, `date` and `time` already supported by `msgspec`.
 
