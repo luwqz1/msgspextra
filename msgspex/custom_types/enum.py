@@ -65,6 +65,8 @@ class _EnumMeta(enum.EnumMeta, type):
             classdict["_missing_"] = classmethod(lambda cls, *_, **__: getattr(cls, not_supported_member))
             classdict["__not_supported__"] = class_property(lambda cls: getattr(cls, not_supported_member))
 
+        classdict["name"] = property(lambda self: object.__getattribute__(self, "_name_"))
+        classdict["value"] = property(lambda self: object.__getattribute__(self, "_value_"))
         return super().__new__(metacls, cls, bases, classdict, boundary=boundary, _simple=_simple, **kwds)
 
 
