@@ -1,6 +1,6 @@
 [project]
 name = "msgspex"
-version = "1.7.0"
+version = "1.7.1"
 description = "An extra msgspec collection of custom types, casters, encode hooks, decode hooks and deprecation system."
 readme = "README.md"
 requires-python = ">=3.14"
