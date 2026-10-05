@@ -6,7 +6,7 @@ class class_property[T]:  # noqa: N801
         self.func = func
         self.func_name = "__" + func.__name__
 
-    def __get__(self, instance: typing.Any | None, owner: type[typing.Any], /) -> T:
+    def __get__(self, instance: typing.Any, owner: typing.Any, /) -> T:
         return self.func(owner)
 
 
